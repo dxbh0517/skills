@@ -54,7 +54,7 @@ failure, a usage-limit error, or two failed check runs.
 | Review M/L | `cursor` `grok-4.7` `{reasoning_effort: "high"}` | `cursor` `gemini-4-neon` `{reasoning_effort: "high"}` | `claudeAgent` `claude-sonnet-5-5` `{effort: "high"}` |
 | Review risk | `claudeAgent` `claude-opus-5-5` `{effort: "high"}` | `claudeAgent` `claude-sonnet-5-5` `{effort: "high"}` | `cursor` `grok-4.7` `{reasoning_effort: "xhigh"}` |
 | CI fix | same as implementer | `claudeAgent` `claude-sonnet-5-5` `{effort: "medium"}` | |
-| PR / CI watch / merge | orchestrator, no delegate | | |
+| PR / CI watch / merge | orchestrator, no delegate — stay until green + merged | | |
 
 When `cursor-api` is `out`, M/L reviews fall through to Claude Sonnet. That
 is the main Claude cost. Prefer one review round, and two only when
