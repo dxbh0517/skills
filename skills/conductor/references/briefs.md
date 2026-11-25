@@ -70,6 +70,7 @@ id resolved or still open: <reason>."
 
 ```
 Fix a failing CI check. Do not open PRs, watch CI, merge, or start subagents.
+The parent orchestrator owns watch + merge and will stay until green and merged.
 Repo: <abs path>  Branch: <branch> (PR <url>)
 Failing check: <name>  Command it runs: <cmd if known>
 Log excerpt: <trimmed, the real error lines>
