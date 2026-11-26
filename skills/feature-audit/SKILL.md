@@ -51,7 +51,7 @@ posts publicly.
 ## 3. Run
 
 Large apps: split by area (auth, core, admin, billing, integrations) and run
-areas in parallel. Under `conductor`, delegate one area per child with the
+areas in parallel. Under `signalbox`, delegate one area per child with the
 inventory rows and the rules above; children are read-only except for the
 audit file.
 

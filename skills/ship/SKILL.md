@@ -1,6 +1,6 @@
 ---
 name: ship
-description: Take finished work all the way out — open the PR, get checks green, merge, then run the repo's post-merge steps (deploy, database migration on the right database, update the local instance or container, sync an upstream PR, cut an app build) and verify each one. Use when the user says "ship it", "create a PR and merge it", "PR and merge if checks pass", "merge and deploy", "merge and update the local version", "push the migration", or "redeploy". Not for multi-model orchestration (use conductor).
+description: Take finished work all the way out — open the PR, get checks green, merge, then run the repo's post-merge steps (deploy, database migration on the right database, update the local instance or container, sync an upstream PR, cut an app build) and verify each one. Use when the user says "ship it", "create a PR and merge it", "PR and merge if checks pass", "merge and deploy", "merge and update the local version", "push the migration", or "redeploy". Not for multi-model orchestration (use signalbox).
 ---
 
 # Ship
@@ -9,7 +9,7 @@ One request, one finished outcome: merged **and** live where it needs to be.
 The user should not have to send "now redeploy", "now push the migration",
 "now update the local container" as follow-ups.
 
-If `conductor` is already running this task, it owns the PR; use only the
+If `signalbox` is already running this task, it owns the PR; use only the
 post-merge part of this skill (step 5) after its merge.
 
 "full stop" → stop at the merge gate, PR ready and unmerged, no post-merge

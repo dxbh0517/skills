@@ -3,8 +3,8 @@
 ## Scope
 
 Some skills include scripts that run on your machine. For example,
-`skills/conductor/scripts/usage.py` reads the Claude Code and Cursor login
-tokens stored locally so it can query each vendor's usage endpoint.
+`skills/signalbox/scripts/signalbox/pools.py` reads the Claude Code and Cursor
+login tokens stored locally so it can query each vendor's usage endpoint.
 Security problems include, among others:
 
 - a script that prints, logs, caches, or sends a token anywhere other than

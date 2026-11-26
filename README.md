@@ -1,6 +1,6 @@
 # Skills
 
-Agent skills for Claude Code, Cursor, and other agents that read
+Agent skills for Claude Code, Codex, Cursor, and other agents that read
 `SKILL.md`, focused on multi-model orchestration in
 [T3 Code](https://github.com/pingdotgg/t3code).
 
@@ -12,7 +12,7 @@ Agent skills for Claude Code, Cursor, and other agents that read
 - [Skills](#skills)
 - [Quick start](#quick-start)
 - [How skills are laid out](#how-skills-are-laid-out)
-- [The conductor skill](#the-conductor-skill)
+- [The signalbox skill](#the-signalbox-skill)
 - [Requirements](#requirements)
 - [Privacy and security](#privacy-and-security)
 - [Contributing](#contributing)
@@ -38,7 +38,7 @@ symlinks each skill into the folders where agents look for skills, so a
 
 | Skill | Trigger phrases | What it does |
 | --- | --- | --- |
-| [conductor](skills/conductor/SKILL.md) | "orchestrate", "conduct", "conductor", "save my usage limits" | Turns a cheap Cursor Auto thread in T3 Code into an orchestrator. It splits a task into plan, implement, review, CI, PR, and merge phases, and sends each phase to the cheapest model that can do it well. It tracks live Claude Code and Cursor usage, uses Claude sparingly by default, and stays on the PR until checks pass and it merges. |
+| [signalbox](skills/signalbox/SKILL.md) | "orchestrate", "signalbox", "conductor", "save my usage limits" | Turns the current agent (Claude Code, Codex, Cursor or T3 Code) into a cheap orchestrator. It splits a task into plan, implement, review, CI, PR, and merge phases and sends each phase to the cheapest model with room left, using live Claude Code, Codex and Cursor usage. Replaces `conductor`. |
 | [ship](skills/ship/SKILL.md) | "ship it", "create a PR and merge it", "merge and deploy", "push the migration" | Opens the PR, gets checks green, merges, then runs the repo's post-merge steps from `.ship.md`: deploy, migration on the right database, local container update, upstream PR sync, app build. It verifies each one. `scripts/detect.py` proposes a ship file. |
 | [pr-triage](skills/pr-triage/SKILL.md) | any PR watcher wake-up | Sorts each PR event into noise (deploy-preview bot comments, stale or duplicate events), CI failure, rebase, review finding, green or done, and acts on it. Noise gets no tokens and no message. |
 | [council](skills/council/SKILL.md) | "council", "council review" | Several models from different families review the same work in parallel and score it out of 10. Later rounds review only what changed. It stops when the target is met, only nits remain, scores plateau, or the round cap is reached. |
@@ -62,6 +62,7 @@ cd skills
 | Generic (`.agents` convention) | `~/.agents/skills/<name>` |
 | Claude Code | `~/.claude/skills/<name>` |
 | Cursor | `~/.cursor/skills/<name>` |
+| Codex | `~/.codex/skills/<name>` |
 
 It is safe to run more than once. Symlinks it made before are refreshed.
 If a real folder with the same name already exists, the script leaves it
@@ -74,12 +75,12 @@ change shows up right away.
 **Uninstall:** remove the symlinks, for example:
 
 ```bash
-rm ~/.agents/skills/conductor ~/.claude/skills/conductor ~/.cursor/skills/conductor
+rm ~/.agents/skills/signalbox ~/.claude/skills/signalbox ~/.cursor/skills/signalbox ~/.codex/skills/signalbox
 ```
 
 **Use:** start a new agent session and ask for what the skill does
-("conduct this: add rate limiting to the API"), or call it by name if your
-agent supports slash commands (`/conductor`).
+("orchestrate this: add rate limiting to the API"), or call it by name if your
+agent supports slash commands (`/signalbox`).
 
 ## How skills are laid out
 
@@ -105,63 +106,49 @@ phrases users will actually type into it. Keep `SKILL.md` to the steps the
 agent always needs, and move tables and templates into `references/` so
 they load only when needed.
 
-## The conductor skill
+## The signalbox skill
 
-The main thread runs on **Cursor Auto**, a cheap model, and acts as the
-orchestrator. It sizes the task, writes self-contained briefs, and hands
-each phase to a child agent through T3 Code's `delegate_task`:
+Source of truth: [dxbh0517/signalbox](https://github.com/dxbh0517/signalbox).
+The copy in `skills/signalbox` is updated from there. It replaces the old
+`conductor` skill, which only worked inside T3 Code.
+
+The agent you are talking to becomes the orchestrator. It sizes the task,
+writes self-contained briefs, and asks the `signalbox` CLI which model
+should do each phase:
 
 ```
 triage ──► plan ──► implement ──► review ──► PR ──► CI ──► merge
- (Auto)   (varies)  (Composer)   (another     (Auto, stays on the PR
-                                  model family) until green and merged)
+          (route)    (route)     (route, other   (orchestrator stays on
+                                  model family)   the PR until it merges)
 ```
 
-Highlights:
-
-- **Size-based phases.** XS fixes skip planning and review. L tasks are
-  split into parallel slices in separate worktrees.
-- **Routing ladders.** Each phase has a ranked list of models. A failure, a
-  usage-limit error, or two failed check runs moves the task one step up.
-  See [`references/routing.md`](skills/conductor/references/routing.md).
-- **Usage-aware budget modes.** [`scripts/usage.py`](skills/conductor/scripts/usage.py)
-  reads Claude Code's 5-hour and 7-day windows and Cursor's Auto and
-  named-model pools, then recommends a mode: `claude-frugal` (default),
-  `claude-off`, `cursor-frugal`, `survival`, or `balanced`.
-- **Review by another model family.** A model never reviews code from its
-  own family.
-- **Owns the PR until it merges.** The orchestrator fixes failing checks,
-  conflicts, and review findings, and watches the PR until it merges. Say
-  "full stop" to have it stop at the merge gate without merging.
-- **Ledger and report.** Each phase is logged with its model, pool, and
-  result. The final report includes the usage the task consumed.
-
-### `usage.py`
+- **Live usage.** Reads Claude Code (5h, 7d), Cursor (Auto and named-model
+  pools) and Codex (5h, weekly) limits, and recommends a budget mode:
+  `claude-frugal` (default), `claude-off`, `cursor-frugal`, `survival`, or
+  `balanced`.
+- **Routing ladders** per phase in `scripts/signalbox/routing.toml`. Pools
+  that are out, or whose CLI isn't installed, are skipped.
+- **Works outside T3 Code.** In T3 Code it uses `delegate_task`. In Claude
+  Code, Codex or Cursor, `signalbox delegate` runs the brief on the picked
+  model's CLI and marks a pool out when the child hits a usage limit.
+- **Review by another model family**, a ledger per phase, and the usage the
+  task consumed in the final report.
 
 ```bash
-python3 skills/conductor/scripts/usage.py              # summary + recommended mode
-python3 skills/conductor/scripts/usage.py --json       # JSON only
-python3 skills/conductor/scripts/usage.py --save task  # snapshot before a task
-python3 skills/conductor/scripts/usage.py --diff task  # usage consumed since the snapshot
-python3 skills/conductor/scripts/usage.py --fresh      # skip the 5-minute cache
+python3 skills/signalbox/scripts/signalbox.py usage            # pools + recommended mode
+python3 skills/signalbox/scripts/signalbox.py route implement  # which model for a phase
+python3 skills/signalbox/scripts/signalbox.py doctor           # CLIs and usage at a glance
 ```
-
-Change which model handles which phase by editing
-[`references/routing.md`](skills/conductor/references/routing.md). The
-brief templates the orchestrator fills in are in
-[`references/briefs.md`](skills/conductor/references/briefs.md).
 
 ## Requirements
 
 - **Any skill:** an agent that loads `SKILL.md` skills (Claude Code,
   Cursor, or another agent that follows the `~/.agents/skills` convention),
   plus `bash` for `install.sh`.
-- **conductor:**
-  - [T3 Code](https://github.com/pingdotgg/t3code) with its orchestration tools
-    (`delegate_task`, `orchestrator_capabilities`, PR tools).
-  - Logged-in Claude Code and/or Cursor providers. Free OpenCode or local
-    models are optional.
-  - Python 3.8+ (standard library only) for `usage.py`.
+- **signalbox:**
+  - Claude Code, Codex, Cursor or T3 Code, with at least one other provider
+    logged in (Claude Code, Codex, `cursor-agent`, or free OpenCode models).
+  - Python 3.11+ (standard library only).
   - The GitHub CLI (`gh`), authenticated, for PR and CI work.
 
 - **ship:** `git`, the GitHub CLI (`gh`), and the CLIs for your deploy
@@ -175,19 +162,20 @@ brief templates the orchestrator fills in are in
   `impeccable`, `apple-design`, `emil-design-eng`, and
   `design-taste-frontend`. It uses whichever ones you have installed.
 
-`usage.py` reads Cursor's login from Linux paths
+signalbox reads Cursor's login from Linux paths
 (`~/.config/Cursor/...`, `~/.config/cursor/auth.json`). On other systems
 the Cursor reading may show `unknown`. The skill still works and treats
 the pool as `tight`.
 
 ## Privacy and security
 
-`usage.py` reads the login tokens Claude Code
-(`~/.claude/.credentials.json`) and Cursor already keep on your machine.
+signalbox reads the login tokens Claude Code
+(`~/.claude/.credentials.json`) and Cursor already keep on your machine,
+and Codex's session logs.
 It sends them only to each vendor's own usage endpoint
 (`api.anthropic.com` and `cursor.com`). Tokens are never printed, logged,
 or written to disk. Cached readings and snapshots in
-`~/.cache/conductor/` hold only usage percentages, reset times, and the
+`~/.cache/signalbox/` hold only usage percentages, reset times, and the
 Cursor plan type.
 
 To report a vulnerability, see [SECURITY.md](SECURITY.md).

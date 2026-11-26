@@ -1,0 +1,167 @@
+# Default routing for signalbox.
+#
+# To change it, run `signalbox config init` (copies this file to
+# ~/.config/signalbox/routing.toml) and edit the copy. Tables in your copy
+# replace the matching tables here, so you only need the parts you change.
+#
+# Model IDs were current on 2026-11-26. When one disappears, point the route
+# at the newest model of the same family and tier.
+
+# ------------------------------------------------------------------ pools
+# Each route drains one pool. A pool is `out` when any of its windows is at or
+# above `out` (unless pay-as-you-go overage is on), `tight` at or above `tight`
+# or when usage runs more than `pace` points ahead of the window's elapsed
+# time. `unknown` is the status used when the usage can't be read.
+
+[pools.claude]
+tight = 75
+out = 90
+pace = 10
+unknown = "tight"
+
+[pools.cursor-auto]
+tight = 85
+out = 100
+unknown = "ok"
+
+[pools.cursor-api]
+tight = 85
+out = 100
+unknown = "tight"
+
+[pools.codex]
+tight = 75
+out = 95
+pace = 10
+unknown = "tight"
+
+[pools.free]
+unknown = "ok"
+
+# ----------------------------------------------------------------- routes
+# host: which CLI runs it (claude, codex, cursor, opencode).
+# model: passed to that CLI. Empty means the CLI's own default.
+# family: the review rule wants the reviewer from a different family.
+
+[routes.composer]
+host = "cursor"
+model = "composer-2.5"
+pool = "cursor-auto"
+family = "cursor"
+
+[routes.grok]
+host = "cursor"
+model = "grok-4.7"
+pool = "cursor-api"
+family = "xai"
+
+[routes.gemini]
+host = "cursor"
+model = "gemini-4-neon"
+pool = "cursor-api"
+family = "google"
+
+[routes.codex]
+host = "codex"
+model = ""
+pool = "codex"
+family = "openai"
+
+[routes.haiku]
+host = "claude"
+model = "claude-haiku-5-5"
+pool = "claude"
+family = "anthropic"
+
+[routes.sonnet]
+host = "claude"
+model = "claude-sonnet-5-5"
+pool = "claude"
+family = "anthropic"
+
+[routes.opus]
+host = "claude"
+model = "claude-opus-5-5"
+pool = "claude"
+family = "anthropic"
+
+[routes.free]
+host = "opencode"
+model = "opencode/beam-free"
+pool = "free"
+family = "free"
+
+# ------------------------------------------------------------------ modes
+# Ladders per phase. The first step whose pool is `ok` wins; if none is ok,
+# the first `tight` one. `self` means the orchestrator does it itself.
+# `route@effort` sets the effort for that step.
+
+[modes.claude-frugal]
+description = "Default. Claude only for deep plans and risky reviews."
+plan-m = ["self", "gemini@high", "codex@high", "sonnet@medium"]
+plan-l = ["opus@high", "codex@high", "grok@high", "sonnet@high"]
+implement = ["composer", "codex@medium", "sonnet@medium"]
+review-s = ["free", "grok@medium", "codex@medium", "haiku@high"]
+review-m = ["grok@high", "codex@high", "gemini@high", "sonnet@high"]
+review-risk = ["opus@high", "codex@high", "sonnet@high", "grok@xhigh"]
+ci-fix = ["composer", "codex@medium", "sonnet@medium"]
+
+[modes.claude-off]
+description = "Claude is near its cap. No Claude at all."
+plan-m = ["self", "gemini@high", "codex@high"]
+plan-l = ["codex@high", "grok@high", "gemini@high", "self"]
+implement = ["composer", "codex@medium"]
+review-s = ["free", "grok@medium", "codex@medium"]
+review-m = ["grok@high", "codex@high", "gemini@high", "free"]
+review-risk = ["codex@high", "grok@xhigh", "gemini@high"]
+ci-fix = ["composer", "codex@medium"]
+
+[modes.cursor-frugal]
+description = "Cursor's Auto pool is used up; Claude and Codex carry the work."
+plan-m = ["self", "codex@high", "sonnet@medium"]
+plan-l = ["opus@high", "codex@high", "sonnet@high"]
+implement = ["codex@medium", "sonnet@medium"]
+review-s = ["free", "haiku@high", "codex@medium"]
+review-m = ["codex@high", "sonnet@high", "grok@high"]
+review-risk = ["opus@high", "codex@high", "sonnet@high"]
+ci-fix = ["codex@medium", "sonnet@medium"]
+
+[modes.survival]
+description = "Little left anywhere. Free models for read-only work; ask before anything big."
+plan-m = ["self"]
+plan-l = ["self", "codex@high"]
+implement = ["self", "codex@medium"]
+review-s = ["free"]
+review-m = ["free", "codex@high"]
+review-risk = ["codex@high", "free"]
+ci-fix = ["self", "codex@medium"]
+
+[modes.balanced]
+description = "Only when asked. Quality first, still cheapest-first per phase."
+plan-m = ["sonnet@high", "codex@high", "gemini@high"]
+plan-l = ["opus@high", "codex@high", "sonnet@high"]
+implement = ["composer", "codex@medium", "sonnet@medium", "opus@medium"]
+review-s = ["sonnet@medium", "codex@medium", "grok@medium"]
+review-m = ["sonnet@high", "codex@high", "grok@high"]
+review-risk = ["opus@high", "codex@high", "sonnet@high"]
+ci-fix = ["composer", "codex@medium", "sonnet@medium"]
+
+# ---------------------------------------------------------------- auto mode
+# `--mode auto` takes the first rule whose pool statuses all match.
+# A status list means any of them.
+
+[[auto]]
+when = { claude = "out" }
+mode = "claude-off"
+
+[[auto]]
+when = { cursor-auto = ["out", "missing"], claude = "ok" }
+mode = "cursor-frugal"
+
+[[auto]]
+when = { cursor-auto = ["out", "missing"], codex = ["out", "missing"] }
+mode = "survival"
+
+[[auto]]
+when = {}
+mode = "claude-frugal"
