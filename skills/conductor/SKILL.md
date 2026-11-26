@@ -171,7 +171,7 @@ Handle findings like this:
 XS tasks skip review. S tasks get one light round from the cheap reviewer.
 
 If the user says "council" or "sol loop", run that skill for this phase
-instead.
+instead (council has its own round cap and stop rules).
 
 ## 5. PR
 
@@ -199,8 +199,11 @@ life of the PR. After open (or after any push that restarts checks): handle
 what is already known, then `watch_pull_request` and end your turn. Never
 sleep, poll, or run `gh --watch`.
 
-On every wake, work the event, then either merge (step 7) or watch again.
-Do not treat a quiet wake as permission to stop.
+On every wake, classify it with the `pr-triage` skill first. Noise
+(deploy-preview bot comments such as Vercel's, stale-SHA or duplicate events)
+→ watch again and end the turn with no message. Otherwise work the event,
+then either merge (step 7) or watch again. Do not treat a quiet wake as
+permission to stop.
 
 - **Failed check:** read it with `ci_logs`. Infra flake (timeout, network,
   runner died) → `ci_rerun` once. Real failure → delegate the fix to the

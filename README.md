@@ -5,7 +5,7 @@ Agent skills for Claude Code, Cursor, and other agents that read
 [T3 Code](https://github.com/pingdotgg/t3code).
 
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
-![Skills: 1](https://img.shields.io/badge/skills-1-brightgreen.svg)
+![Skills: 7](https://img.shields.io/badge/skills-7-brightgreen.svg)
 ![Python 3.8+](https://img.shields.io/badge/python-3.8%2B-blue.svg)
 
 - [About](#about)
@@ -39,6 +39,12 @@ symlinks each skill into the folders where agents look for skills, so a
 | Skill | Trigger phrases | What it does |
 | --- | --- | --- |
 | [conductor](skills/conductor/SKILL.md) | "orchestrate", "conduct", "conductor", "save my usage limits" | Turns a cheap Cursor Auto thread in T3 Code into an orchestrator. It splits a task into plan, implement, review, CI, PR, and merge phases, and sends each phase to the cheapest model that can do it well. It tracks live Claude Code and Cursor usage, uses Claude sparingly by default, and stays on the PR until checks pass and it merges. |
+| [ship](skills/ship/SKILL.md) | "ship it", "create a PR and merge it", "merge and deploy", "push the migration" | Opens the PR, gets checks green, merges, then runs the repo's post-merge steps from `.ship.md`: deploy, migration on the right database, local container update, upstream PR sync, app build. It verifies each one. `scripts/detect.py` proposes a ship file. |
+| [pr-triage](skills/pr-triage/SKILL.md) | any PR watcher wake-up | Sorts each PR event into noise (deploy-preview bot comments, stale or duplicate events), CI failure, rebase, review finding, green or done, and acts on it. Noise gets no tokens and no message. |
+| [council](skills/council/SKILL.md) | "council", "council review" | Several models from different families review the same work in parallel and score it out of 10. Later rounds review only what changed. It stops when the target is met, only nits remain, scores plateau, or the round cap is reached. |
+| [design-pass](skills/design-pass/SKILL.md) | "improve the design", "use the taste skill", "polish the UI", "taste council" | Picks one or two installed design skills for the surface, audits with screenshots, builds within the project's components and tokens, checks the result with responsive-qa, and can run a multi-model taste review. |
+| [responsive-qa](skills/responsive-qa/SKILL.md) | "overflowing", "not fully visible", "broken on mobile", "still showing on Safari" | Measures overflow, clipped content, oversized dialogs, tap targets and sticky-bar gaps at phone, tablet and desktop widths with `scripts/layout-check.js`. Checks WebKit and confirms the project's own components were reused. |
+| [feature-audit](skills/feature-audit/SKILL.md) | "make sure each feature works", "audit the app", "what's broken" | Builds a feature inventory from routes, APIs, jobs and tables (`scripts/inventory.py`), tests each feature with evidence, fixes small breaks, and reports a pass/broken/partial table. |
 
 ## Quick start
 
@@ -46,7 +52,7 @@ symlinks each skill into the folders where agents look for skills, so a
 git clone https://github.com/dxbh0517/skills.git
 cd skills
 ./install.sh              # link every skill
-./install.sh conductor    # or only the ones you name
+./install.sh ship council # or only the ones you name
 ```
 
 `install.sh` creates symlinks in:
@@ -157,6 +163,17 @@ brief templates the orchestrator fills in are in
     models are optional.
   - Python 3.8+ (standard library only) for `usage.py`.
   - The GitHub CLI (`gh`), authenticated, for PR and CI work.
+
+- **ship:** `git`, the GitHub CLI (`gh`), and the CLIs for your deploy
+  host and migration tool. `detect.py` needs Python 3.8+ (standard library
+  only). It prints database **provider and host** only, never credentials.
+- **council, design-pass, feature-audit:** multi-model parts use T3 Code's
+  `delegate_task`. They also run with any harness that has subagents.
+- **responsive-qa:** a browser the agent can drive (T3 Code preview tools or
+  Playwright). WebKit checks use `npx playwright` when it is available.
+- **design-pass** routes to third-party design skills such as
+  `impeccable`, `apple-design`, `emil-design-eng`, and
+  `design-taste-frontend`. It uses whichever ones you have installed.
 
 `usage.py` reads Cursor's login from Linux paths
 (`~/.config/Cursor/...`, `~/.config/cursor/auth.json`). On other systems
