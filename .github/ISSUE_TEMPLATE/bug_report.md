@@ -4,7 +4,7 @@ about: A skill did the wrong thing or a script failed
 labels: bug
 ---
 
-**Skill:** <!-- e.g. conductor -->
+**Skill:** <!-- e.g. signalbox -->
 **Agent and version:** <!-- e.g. T3 Code x.y, Claude Code x.y, Cursor x.y -->
 **OS:**
 

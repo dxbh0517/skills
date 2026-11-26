@@ -1,6 +1,6 @@
 ---
 name: pr-triage
-description: Decide in one step what a pull-request wake-up needs — nothing (deploy-preview bot comments, duplicate or stale events), a CI fix, a rebase, a review-finding fix, or the merge — and act without spending tokens on noise. Use whenever a PR watcher wakes you ("Update on pull request #N…", "checks failed", "conflicts with its base branch", "new comment"), and inside ship, conductor, or babysit-pr loops.
+description: Decide in one step what a pull-request wake-up needs — nothing (deploy-preview bot comments, duplicate or stale events), a CI fix, a rebase, a review-finding fix, or the merge — and act without spending tokens on noise. Use whenever a PR watcher wakes you ("Update on pull request #N…", "checks failed", "conflicts with its base branch", "new comment"), and inside ship, signalbox, or babysit-pr loops.
 ---
 
 # PR triage
@@ -39,7 +39,7 @@ done > rebase > ci-fail > finding > green > noise.
   `gh run view <id> --log-failed`). Infra flake (runner died, network, 5xx,
   timeout with no test failure, rate limit) → rerun once (`ci_rerun`). Second
   identical failure or a real error → fix it on the branch (or delegate, under
-  conductor), push, watch again.
+  signalbox), push, watch again.
 - **rebase** → `git fetch`, rebase onto the base, resolve, run the checks the
   conflict touched, `git push --force-with-lease` to this PR's branch only,
   watch again.
@@ -47,7 +47,7 @@ done > rebase > ci-fail > finding > green > noise.
   in the intended path → fix. Otherwise reply with a short reason (use
   `leaving-pr-comments` if installed) and resolve. Keep scope: decline
   speculative edge cases, extra tests, and refactors as follow-ups.
-- **green** → if merging was authorized (ship, conductor, "merge it", "full
+- **green** → if merging was authorized (ship, signalbox, "merge it", "full
   send"), run the merge gate: `git fetch`, head unchanged, not BEHIND/DIRTY,
   no unresolved real findings, review bots finished. Then merge. If not
   authorized, `unwatch_pull_request` and report "ready" in one line.

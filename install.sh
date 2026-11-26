@@ -4,7 +4,7 @@
 set -euo pipefail
 
 repo="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-targets=("$HOME/.agents/skills" "$HOME/.claude/skills" "$HOME/.cursor/skills")
+targets=("$HOME/.agents/skills" "$HOME/.claude/skills" "$HOME/.cursor/skills" "$HOME/.codex/skills")
 
 if [ "$#" -gt 0 ]; then
   skills=("$@")
